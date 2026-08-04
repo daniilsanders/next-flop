@@ -157,15 +157,16 @@ no overfitting. Only the fixed held-out set is used for comparison.
 
 ### Seeding
 
-Seeds `1..10`. Seed `s` controls model init *and* the training data stream, and is **paired
-across conditions**: A/seed-3 and B2/seed-3 see identical initialization and an identical
-sequence of training batches. All comparisons are paired at the seed level.
+Seeds `1..N`, where **N is set by the power gate (§6.3)** — minimum 10, maximum 30. Seed
+`s` controls model init *and* the training data stream, and is **paired across
+conditions**: A/seed-3 and B2/seed-3 see identical initialization and an identical sequence
+of training batches. All comparisons are paired at the seed level.
 
 | Stage | Runs |
 |---|---|
 | Stage 1 (λ + band) | B2 only, 10 h × 3 seeds × 3 λ = **90 runs** |
-| Stage 2 (comparison) | band-h × {A, B1, B2, B3} × 10 seeds |
-| Stage 2 floor | band-h × B0 × 5 seeds |
+| Stage 2 (comparison) | band-h × {A, B1, B2, B3} × N seeds |
+| Stage 2 floor | band-h × B0 × ⌈N/2⌉ seeds |
 
 Stage 2 does not begin until Stage 1 is complete and both selections are written to
 `selection.json`. That file is not edited afterward.
@@ -210,7 +211,57 @@ Stage-1 seeds ∈ [0.20, 0.80]**.
 capacity band." That is the informative null. The task is not adjusted to manufacture a
 band, and the criterion is not widened.
 
-### 6.3 Escape hatch — specified in advance, usable exactly once
+### 6.3 Power gate — Stage 2 seed count
+
+Frozen constants:
+
+```
+target effect   Δregret = 0.05 (absolute, paired)
+target power    80%
+alpha           0.05, two-sided
+minimum seeds   10
+maximum seeds   30
+```
+
+Computed after §6.1 and §6.2, before any treatment run:
+
+1. At each `h` entering the capacity band, estimate `σ_B2` — the between-seed SD of
+   final B2 regret across the 3 Stage-1 seeds at the **selected λ**.
+2. **Planning SD:** `σ_Δ,plan = √2 · σ_B2`.
+   Stage 1 observes B2 only and therefore never observes a paired A−B2 difference.
+   `√2 · σ_B2` is the value that would hold if A and B2 were *independent* with equal
+   variance. Paired seeds should make them positively correlated, which makes the true
+   paired SD **smaller** — so this is deliberately conservative, and it avoids planning
+   from an unrealistically optimistic variance estimate. **The actual paired A−B2 SD may
+   differ from this estimate in either direction; this is an approximation, not a
+   measurement.**
+3. Compute required `n` for a **paired t-test** at the constants above.
+4. Take the **maximum** required `n` across all band `h`.
+5. **Round upward to the next even number.**
+
+Decision:
+
+| Required n (rounded) | Action |
+|---|---|
+| ≤ 10 | keep 10 seeds |
+| 11 – 30 | raise **every** Stage 2 condition to that count, paired across conditions |
+| > 30 | **STOP before Stage 2.** Report: *"No feasible powered comparison under the pre-registered compute cap."* |
+
+**Explicitly forbidden as responses to an unfavourable gate:** lowering the effect
+threshold, narrowing the capacity band, selecting only the lowest-variance `h` values, or
+raising the cap. A null at MDE > 0.05 would mean "we failed to detect an effect we were
+not powered to detect," which is not the falsification this protocol claims to provide.
+
+**Statistical caveat, stated rather than glossed.** The final hypothesis test is Wilcoxon
+signed-rank (§7). This calculation assumes a paired t-test with approximately normal
+paired differences. It is a **planning approximation** and is labelled as such in
+`power.json`. It is not exact power for Wilcoxon and must not be reported as such.
+
+Results are written to `power.json` — the full per-`h` MDE table and the chosen seed
+count — and **committed separately, before any treatment run starts**, so the decision
+trail stays visible in history.
+
+### 6.4 Escape hatch — specified in advance, usable exactly once
 
 Decided before Stage 2, applied only to the whole of Stage 1 re-run:
 
@@ -227,12 +278,13 @@ recorded in every result file.
 
 ## 7. Decision rule
 
-**Primary endpoint:** paired difference in final regret, A − B2, across the 10 paired seeds
-at each band-h.
+**Primary endpoint:** paired difference in final regret, A − B2, across the N paired seeds
+(§6.3) at each band-h.
 
 - **Test:** Wilcoxon signed-rank, two-sided, paired by seed.
 - **Multiple comparisons:** Holm–Bonferroni across the band-h values.
 - **Minimum effect size:** mean paired Δregret ≥ **0.05** (absolute, normalized scale).
+  This threshold is fixed and is not lowered under any circumstance (§6.3).
 
 **Declare A > B2** iff *all three* hold:
 1. Holm-corrected p < 0.05 at ≥ 1 band-h, **and**

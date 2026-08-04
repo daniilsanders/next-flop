@@ -1,0 +1,18 @@
+{
+  "frozen_loss": 0.6931471805599453,
+  "bayes_loss": 0.6142746970153112,
+  "oracle_loss": 0.5642270245627602,
+  "regret_denominator": 0.07887248354463405,
+  "n_scored_predictions": 229376,
+  "heldout_seed": 9999,
+  "heldout_seqs": 64,
+  "heldout_pred": 4096,
+  "burn_in": 512,
+  "env_config": {
+    "p_v": 0.001,
+    "eps_calm": 0.005,
+    "eps_volatile": 0.05,
+    "p_low": 0.25,
+    "p_high": 0.75
+  }
+}

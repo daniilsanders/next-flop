@@ -119,7 +119,8 @@ class AgentK2(nn.Module):
         loss_w = x_win.new_zeros(())
         loss_s = x_win.new_zeros(())
         n_aux = 0
-        log = {"dh": 0.0, "ds_norm": 0.0, "n_ds_consumed": 0}
+        log = {"dh": 0.0, "ds_norm": 0.0, "n_ds_consumed": 0, "aux_raw": 0.0,
+               "h_norm": 0.0, "first_consume": None}
         traj = {"dw": [], "ds": []} if collect else None
 
         for j in range(W):
@@ -135,6 +136,8 @@ class AgentK2(nn.Module):
             # Consume a matured delta_s if one is due now.
             released = rel[0] if len(rel) == rel.maxlen else None
             if released is not None:
+                if log["first_consume"] is None:
+                    log["first_consume"] = j
                 log["n_ds_consumed"] += 1
                 log["ds_norm"] += float(released.norm(dim=-1).mean())
 
@@ -148,18 +151,22 @@ class AgentK2(nn.Module):
                 target = h_new.detach()
                 pred = pend[0]
                 # Stop-grad on the TARGET: gradient reaches p_s and f_phi only.
-                mse = ((target - pred) ** 2).mean()
+                raw = ((target - pred) ** 2).mean()
+                log["aux_raw"] += float(raw.detach())
+                mse = raw
                 if self.normalise_aux:
                     # Makes lambda comparable across horizons: a k=8 residual is
                     # systematically larger than a k=1 one, so an unnormalised loss would
                     # silently reweight the auxiliary objective in the arm under test.
-                    mse = mse / (target.var(dim=0).mean().detach() + 1e-6)
+                    # Variance estimate is detached and computed identically in both arms.
+                    mse = raw / (target.var(dim=0).mean().detach() + 1e-6)
                 loss_s = loss_s + mse
                 n_aux += 1
                 rel.append((target - pred).detach())
 
             with torch.no_grad():
                 log["dh"] += float((h_new - h).norm(dim=-1).mean())
+                log["h_norm"] += float(h_new.norm(dim=-1).mean())
             if collect:
                 traj["dw"].append(dw.squeeze(-1).detach())
                 traj["ds"].append(released.detach() if released is not None
@@ -169,6 +176,8 @@ class AgentK2(nn.Module):
             h = h_new
 
         log["dh"] /= W
+        log["h_norm"] /= W
+        log["aux_raw"] /= max(1, n_aux)
         if log["n_ds_consumed"]:
             log["ds_norm"] /= log["n_ds_consumed"]
         out_state = {"h": h, "dw": dw, "pend": pend, "rel": rel}

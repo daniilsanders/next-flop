@@ -12,3 +12,5 @@ runs/smoke_band/
 # Calibration runs are disposable by design; only the reports are kept.
 runs/calib/K*.json
 runs/calib2/e*.json
+runs/pilot/*.json
+runs/stage2/*.json

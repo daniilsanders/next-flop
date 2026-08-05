@@ -1,0 +1,48 @@
+{
+  "_note": "PLANNING APPROXIMATION (paired t). Reported test is Wilcoxon signed-rank.",
+  "alpha": 0.05,
+  "comparisons": [
+    {
+      "comparison": "within-horizon",
+      "effect": 0.05,
+      "mde_at_10": 0.008174837819838176,
+      "mde_at_30": 0.004343784502734725,
+      "required_n": 3,
+      "rounded": 4,
+      "sigma": 0.008207657192170722
+    },
+    {
+      "comparison": "interaction",
+      "effect": 0.03,
+      "mde_at_10": 0.011560966515015652,
+      "mde_at_30": 0.006143038955793518,
+      "required_n": 4,
+      "rounded": 4,
+      "sigma": 0.011607380116476912
+    }
+  ],
+  "governing_required_n": 4,
+  "max_seeds": 30,
+  "min_seeds": 10,
+  "pilot_paired_sd": {
+    "k1_A-B2": 0.0029441805456856705,
+    "k1_A-B3": 0.008207657192170722,
+    "k8_A-B2": 0.005950877180917726,
+    "k8_A-B3": 0.00687435317717117
+  },
+  "power": 0.8,
+  "provenance": {
+    "code_sha": "03fa315e936c5698",
+    "git_commit": "23cb6b11c6273085004d22efb1064ef202d2e67d",
+    "git_dirty": true,
+    "hostname": "Mac",
+    "numpy": "2.4.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "protocol_sha": "f832b6545ab9b4f1",
+    "python": "3.13.2",
+    "torch": "2.11.0"
+  },
+  "source": "measured paired SD from pilot (h=8, seeds 401-404), not the sqrt(2)*sigma_B2 proxy",
+  "stage2_seeds": 10,
+  "worst_paired_sd": 0.008207657192170722
+}

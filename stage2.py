@@ -45,6 +45,7 @@ class S2Config:
     horizons: tuple
     h_values: tuple
     seeds: tuple
+    lams: tuple = (0.1,)
     delay: int = 9
     normalise_aux: bool = True
     lam: float = 0.1
@@ -69,20 +70,47 @@ PILOT = S2Config(
     seeds=(401, 402, 403, 404),  # paired across every cell
 )
 
-CONFIGS = {c.name: c for c in (PILOT,)}
+# Protocol v2 §4: lambda is re-selected under this environment before Stage 2.
+# B2 only, so the selection cannot favour the treatment. Own seed namespace.
+LAMBDA_SEL = S2Config(
+    name="lambda", runs_dir="runs/lambda",
+    conditions=("B2",), horizons=(8,), h_values=(4, 6, 8, 12),
+    seeds=(501, 502, 503), lams=(0.03, 0.1, 0.3),
+)
+
+def _selected_lambda(default=0.1):
+    """Read the lambda frozen by the §4 selection, if it has run."""
+    p = os.path.join(_HERE, "runs/lambda/lambda_selected.json")
+    if os.path.exists(p):
+        with open(p) as f:
+            return json.load(f)["selected_lambda"]
+    return default
 
 
-def tag(cond, k, h, seed):
-    return f"{cond}_k{k}_h{h:03d}_s{seed}"
+# The experiment. 2 horizons x 4 conditions x band-h x 10 seeds (power gate: governing
+# required n = 4, so the 10-seed minimum applies).
+STAGE2 = S2Config(
+    name="stage2", runs_dir="runs/stage2",
+    conditions=("B1", "B2", "B3", "A"), horizons=(1, 8), h_values=(4, 6, 8, 12),
+    seeds=tuple(range(1, 11)), lam=_selected_lambda(),
+)
+
+CONFIGS = {c.name: c for c in (PILOT, LAMBDA_SEL, STAGE2)}
+
+
+def tag(cond, k, h, seed, lam=None):
+    base = f"{cond}_k{k}_h{h:03d}_s{seed}"
+    return base if lam is None else f"lam{str(lam).replace('.', 'p')}_{base}"
 
 
 def jobs(cfg):
-    return [(cfg.name, c, k, h, s) for k in cfg.horizons for h in cfg.h_values
-            for c in cfg.conditions for s in cfg.seeds]
+    multi = len(cfg.lams) > 1
+    return [(cfg.name, c, k, h, s, lam, multi) for lam in cfg.lams for k in cfg.horizons
+            for h in cfg.h_values for c in cfg.conditions for s in cfg.seeds]
 
 
-def record_path(cfg, cond, k, h, seed):
-    return os.path.join(_HERE, cfg.runs_dir, tag(cond, k, h, seed) + ".json")
+def record_path(cfg, cond, k, h, seed, lam=None):
+    return os.path.join(_HERE, cfg.runs_dir, tag(cond, k, h, seed, lam) + ".json")
 
 
 # ------------------------------------------------------------------ training
@@ -92,7 +120,8 @@ def _bayes(cfg_env):
     return envk.mean_loss(envk.bayes_predict(d["x"], d["k"], cfg_env), d["x"]), d
 
 
-def train_one(cond, k, h, seed, cfg: S2Config):
+def train_one(cond, k, h, seed, cfg: S2Config, lam=None):
+    lam = cfg.lam if lam is None else lam
     bayes, hold = _bayes(ENV_CFG)
     xh = torch.tensor(hold["x"], dtype=torch.float32)
     kh = torch.tensor(hold["k"].astype(np.int64))
@@ -121,7 +150,7 @@ def train_one(cond, k, h, seed, cfg: S2Config):
         lo = wpos * cfg.window
         lw, ls, state, log, _ = agent.forward_window(
             xb[:, lo:lo + cfg.window + 1], kb[:, lo:lo + cfg.window + 1], state)
-        loss = lw + cfg.lam * ls
+        loss = lw + lam * ls
 
         opt.zero_grad(set_to_none=True)
         loss.backward()
@@ -159,9 +188,9 @@ def train_one(cond, k, h, seed, cfg: S2Config):
         out = {"final_loss": float("nan"), "final_regret": float("nan"), "converged": False}
 
     torch.save(agent.state_dict(),
-               os.path.join(_HERE, cfg.runs_dir, "ckpt", tag(cond, k, h, seed) + ".pt"))
+               os.path.join(_HERE, cfg.runs_dir, "ckpt", tag(cond, k, h, seed, lam) + ".pt"))
     return {"condition": cond, "horizon": k, "h_dim": h, "seed": seed,
-            "delay": cfg.delay, "normalise_aux": cfg.normalise_aux, "lam": cfg.lam,
+            "delay": cfg.delay, "normalise_aux": cfg.normalise_aux, "lam": lam,
             "bayes_loss": bayes, "first_consume": first_consume,
             "expected_first_consume": cfg.delay,
             "n_params": sum(p.numel() for p in agent.parameters()),
@@ -199,9 +228,9 @@ def evaluate(agent, xh, kh, cfg, bayes):
 
 def run_one(args):
     torch.set_num_threads(1)
-    cfg_name, cond, k, h, seed = args
+    cfg_name, cond, k, h, seed, lam, multi = args
     cfg = CONFIGS[cfg_name]
-    t = tag(cond, k, h, seed)
+    t = tag(cond, k, h, seed, lam if multi else None)
     log_path = os.path.join(_HERE, cfg.runs_dir, "logs", t + ".log")
     ckpt_dir = os.path.join(_HERE, cfg.runs_dir, "ckpt")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -213,7 +242,7 @@ def run_one(args):
         with contextlib.redirect_stdout(lf), contextlib.redirect_stderr(lf):
             print(f"{t}  commit={prov['git_commit'][:8]}")
             try:
-                rec = train_one(cond, k, h, seed, cfg)
+                rec = train_one(cond, k, h, seed, cfg, lam)
                 status = "failed" if rec["failed"] else "ok"
                 if status == "ok" and not all(
                         np.isfinite(v) for v in (rec["final_loss"], rec["final_regret"])):
@@ -231,7 +260,7 @@ def run_one(args):
                 "started": started, "ended": time.time(),
                 "runtime_s": time.perf_counter() - t0,
                 "log": os.path.relpath(log_path, _HERE)})
-    stage1.atomic_write_json(record_path(cfg, cond, k, h, seed), rec)
+    stage1.atomic_write_json(record_path(cfg, cond, k, h, seed, lam if multi else None), rec)
     return t, status, rec["final_regret"], rec["runtime_s"]
 
 
@@ -241,13 +270,15 @@ def main(cfg, workers=None):
     os.makedirs(out_dir, exist_ok=True)
     planned = jobs(cfg)
     todo = [j for j in planned
-            if not os.path.exists(record_path(cfg, j[1], j[2], j[3], j[4]))]
+            if not os.path.exists(record_path(cfg, j[1], j[2], j[3], j[4],
+                                                j[5] if j[6] else None))]
 
     stage1.atomic_write_json(os.path.join(out_dir, "manifest.json"), {
         "config": cfg.name, "written": time.time(), "provenance": stage1.provenance(),
         "env": asdict(ENV_CFG), "run_cfg": asdict(cfg),
         "n_planned": len(planned),
-        "planned": [tag(c, k, h, s) for _, c, k, h, s in planned],
+        "planned": [tag(c, k, h, s, lm if mu else None)
+                    for _, c, k, h, s, lm, mu in planned],
         "workers": workers or cfg.workers, "hostname": socket.gethostname()})
 
     print(f"stage2[{cfg.name}] planned={len(planned)} todo={len(todo)} "

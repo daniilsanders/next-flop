@@ -92,7 +92,10 @@ def _selected_lambda(default=0.1):
 STAGE2 = S2Config(
     name="stage2", runs_dir="runs/stage2",
     conditions=("B1", "B2", "B3", "A"), horizons=(1, 8), h_values=(4, 6, 8, 12),
-    seeds=tuple(range(1, 11)), lam=_selected_lambda(),
+    seeds=tuple(range(1, 11)),
+    # BOTH must carry the selected value: jobs() builds the per-run lambda from `lams`,
+    # so setting only `lam` silently leaves every run on the (0.1,) default.
+    lams=(_selected_lambda(),), lam=_selected_lambda(),
 )
 
 CONFIGS = {c.name: c for c in (PILOT, LAMBDA_SEL, STAGE2)}

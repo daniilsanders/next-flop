@@ -1,0 +1,24 @@
+{
+  "aggregate_regret": {
+    "0.03": 0.5619056777325232,
+    "0.1": 0.5708474271333257,
+    "0.3": 0.5764618381072268
+  },
+  "n_runs": 36,
+  "provenance": {
+    "code_sha": "03fa315e936c5698",
+    "git_commit": "b6fe83b7fa62927cdd589b88e0d1a1fae6e68453",
+    "git_dirty": true,
+    "hostname": "Mac-Studio.local",
+    "numpy": "2.4.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "protocol_sha": "f832b6545ab9b4f1",
+    "python": "3.13.2",
+    "torch": "2.11.0"
+  },
+  "rule": "lowest mean regret over band; tie-break within 0.005 -> 0.1, then smaller",
+  "selected_lambda": 0.03,
+  "tied": [
+    0.03
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "band": [],
+  "band_window": [
+    0.2,
+    0.8
+  ],
+  "config": "protocol",
+  "decision": "escape_hatch",
+  "hatch": {
+    "action": "weaken emissions to 0.35/0.65",
+    "already_used": false,
+    "condition": "task too easy (no h reaches regret 0.20)",
+    "eligible": true
+  },
+  "integrity": {
+    "analysis_environment": {
+      "numpy": "2.4.3",
+      "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+      "python": "3.13.2",
+      "scipy": "1.18.0"
+    },
+    "analysis_input_digest": "20b93b1f3dc55f77eb462a94e909fc22a3369a3847a4f299ed507cb8471043e0",
+    "code_vs_commit": {
+      "all_result_determining_files_matched_commit": true,
+      "checked": true,
+      "code_sha_matches": true,
+      "per_file_sha_at_commit": {
+        "PROTOCOL.md": "f832b6545ab9b4f1",
+        "env.py": "03600ddc588cdc7b",
+        "model.py": "55528f60a6a24090",
+        "stage1.py": "ae958c3674d548c2",
+        "train.py": "9b4857257fe1fb6c"
+      },
+      "protocol_sha_matches": true
+    },
+    "n_failed": 0,
+    "n_invalid": 0,
+    "n_missing": 0,
+    "n_planned": 90,
+    "n_present": 90,
+    "n_used_in_analysis": 90,
+    "n_valid": 90,
+    "no_record_rewritten": true,
+    "observed_max_concurrency": 12,
+    "provenance_mismatches": [],
+    "records_rewritten_after_launch": [],
+    "training_provenance": {
+      "code_sha": "03fa315e936c5698",
+      "git_commit": "fdbeda3fba19fe2c1effa2d518b057d3960d85e1",
+      "git_dirty": true,
+      "hostname": "Mac",
+      "numpy": "2.4.3",
+      "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+      "protocol_sha": "f832b6545ab9b4f1",
+      "python": "3.13.2",
+      "torch": "2.11.0"
+    },
+    "worker_count_recorded_by_driver": false
+  },
+  "lambda_note": "no lambda has any h inside the [0.05, 0.95] window",
+  "lambda_table": [
+    {
+      "aggregate_regret": null,
+      "h_included": [],
+      "lambda": 0.03,
+      "n_h_included": 0
+    },
+    {
+      "aggregate_regret": null,
+      "h_included": [],
+      "lambda": 0.1,
+      "n_h_included": 0
+    },
+    {
+      "aggregate_regret": null,
+      "h_included": [],
+      "lambda": 0.3,
+      "n_h_included": 0
+    }
+  ],
+  "lambda_window": [
+    0.05,
+    0.95
+  ],
+  "manifest_planned": 90,
+  "message": "no valid lambda aggregate (no lambda has any h inside the [0.05, 0.95] window); task too easy (no h reaches regret 0.20); pre-registered action: weaken emissions to 0.35/0.65",
+  "problems": [],
+  "provenance": {
+    "code_sha": "03fa315e936c5698",
+    "git_commit": "fdbeda3fba19fe2c1effa2d518b057d3960d85e1",
+    "git_dirty": true,
+    "hostname": "Mac",
+    "numpy": "2.4.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "protocol_sha": "f832b6545ab9b4f1",
+    "python": "3.13.2",
+    "torch": "2.11.0"
+  },
+  "records_ok": 90,
+  "selected_lambda": null,
+  "written": 1785881383.024441
+}
